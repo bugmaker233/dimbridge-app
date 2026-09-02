@@ -19,13 +19,12 @@ import {
 
 // function data_extent_predicate(data, selected, attributes) {}
 export class PredicateRegression {
-    //From brush data, produce predicates derived base on data extent only.
-    //Front end only. No backend server
+    // Forward brush masks to the backend predicate algorithm selected by the model.
     constructor(data, attributes, model) {
         console.log("PredicateRegression init");
 
         this.model = model;
-        this.mode = "predicate regression";
+        this.mode = model?.get("predicate_mode") ?? "predicate regression";
         this.data = data;
         this.attributes = attributes;
         this.extent = Object.fromEntries(

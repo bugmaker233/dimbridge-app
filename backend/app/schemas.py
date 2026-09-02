@@ -42,10 +42,43 @@ class PredicateRequest(BaseModel):
         return self
 
 
+class PaperRegressionRequest(PredicateRequest):
+    n_iter: int = Field(default=1000, ge=1, le=20_000)
+    learning_rate: float = Field(default=0.01, gt=0.0, le=1.0)
+    exponent: int = Field(default=4, ge=2, le=16)
+    gamma_l1: float = Field(default=0.01, ge=0.0)
+    gamma_a: float = Field(default=0.05, ge=0.0)
+    gamma_mu: float = Field(default=0.01, ge=0.0)
+    class_balance: bool = True
+    random_seed: int = 0
+
+
+class RPIRequest(PredicateRequest):
+    n_bins: int = Field(default=8, ge=2, le=64)
+    max_depth: int | None = Field(default=None, ge=1)
+    max_solutions: int | None = Field(default=20, ge=1, le=1000)
+    max_states: int | None = Field(default=20_000, ge=1)
+    min_support: int = Field(default=1, ge=1)
+    min_f1_improvement: float = Field(default=1e-9, ge=0.0, le=1.0)
+
+
+class PredicateCandidate(BaseModel):
+    rank: int
+    predicate: list[dict[str, Any]]
+    quality: dict[str, float]
+    selected_count: int
+    predicted_count: int
+    true_positive_count: int
+    signature: str
+
+
 class PredicateResponse(BaseModel):
     columns: list[str]
     predicates: list[Any]
     qualities: list[dict[str, float]] | None = None
+    algorithm: str | None = None
+    candidate_solutions: list[list[PredicateCandidate]] | None = None
+    diagnostics: dict[str, Any] | None = None
 
 
 class ProjectionRequest(BaseModel):

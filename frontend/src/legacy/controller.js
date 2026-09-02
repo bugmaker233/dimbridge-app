@@ -69,7 +69,7 @@ export class InteractionController {
                     0,
                     splom_attribute_limit,
                 );
-            } else if (this.predicate_mode === "predicate regression") {
+            } else if (this.predicate_mode !== "data extent") {
                 splom_attributes = Object.keys(predicates[0]).slice(
                     0,
                     splom_attribute_limit,

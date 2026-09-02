@@ -236,8 +236,8 @@ export function define_arrowhead(svg) {
   //def #arrowhead
   let marker_style = {w: 4, h: 4};
   let m = marker_style;
-  svg.append("defs").node().innerHTML = `<marker id="arrowhead" 
-    markerWidth="${m.w}" markerHeight="${m.h}" 
+  svg.append("defs").node().innerHTML = `<marker id="arrowhead"
+    markerWidth="${m.w}" markerHeight="${m.h}"
     refX="${m.w / 5}" refY="${m.h / 2}" orient="auto"> \
     <polygon points="\
     0 0, ${m.w} ${m.h / 2}, 0 ${m.h}, ${m.w / 5} ${m.h / 2}"\

@@ -127,6 +127,17 @@ function buildObjectiveExtents(analysis) {
 export default function AnalysisWorkspace({analysis, dataset, onProjectionChange, onResult}) {
   const [predicateMode, setPredicateMode] = useState("regression");
   const [predicateFactorLimit, setPredicateFactorLimit] = useState(20);
+  const [paperIterations, setPaperIterations] = useState(1000);
+  const [paperExponent, setPaperExponent] = useState(4);
+  const [paperGammaL1, setPaperGammaL1] = useState(0.01);
+  const [paperGammaA, setPaperGammaA] = useState(0.05);
+  const [paperGammaMu, setPaperGammaMu] = useState(0.01);
+  const [paperClassBalance, setPaperClassBalance] = useState(true);
+  const [rpiBins, setRpiBins] = useState(8);
+  const [rpiMaxDepth, setRpiMaxDepth] = useState(0);
+  const [rpiMaxSolutions, setRpiMaxSolutions] = useState(20);
+  const [rpiMaxStates, setRpiMaxStates] = useState(20000);
+  const [rpiMinSupport, setRpiMinSupport] = useState(1);
   const [selectionHistory, setSelectionHistory] = useState([]);
   const [sessionStartedAt, setSessionStartedAt] = useState(() => new Date().toISOString());
   const [brushMode, setBrushMode] = useState("contrastive");
@@ -233,11 +244,49 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
 
   const targetOptions = dataset ? dataset.columns : [];
   const numericColumns = dataset ? dataset.numeric_columns : [];
+  const predicateOptions = useMemo(
+    function () {
+      if (predicateMode === "paper-regression") {
+        return {
+          n_iter: paperIterations,
+          exponent: paperExponent,
+          gamma_l1: paperGammaL1,
+          gamma_a: paperGammaA,
+          gamma_mu: paperGammaMu,
+          class_balance: paperClassBalance,
+        };
+      }
+      if (predicateMode === "rpi") {
+        return {
+          n_bins: rpiBins,
+          max_depth: rpiMaxDepth > 0 ? rpiMaxDepth : null,
+          max_solutions: rpiMaxSolutions > 0 ? rpiMaxSolutions : null,
+          max_states: rpiMaxStates > 0 ? rpiMaxStates : null,
+          min_support: rpiMinSupport,
+        };
+      }
+      return {};
+    },
+    [
+      paperClassBalance,
+      paperExponent,
+      paperGammaA,
+      paperGammaL1,
+      paperGammaMu,
+      paperIterations,
+      predicateMode,
+      rpiBins,
+      rpiMaxDepth,
+      rpiMaxSolutions,
+      rpiMaxStates,
+      rpiMinSupport,
+    ],
+  );
 
   const handlePredicateResult = useCallback(
     function (payload) {
       onResult(payload);
-      if (predicateMode !== "regression" || !Array.isArray(payload?.predicates)) {
+      if (predicateMode === "data-extent" || !Array.isArray(payload?.predicates)) {
         return;
       }
 
@@ -286,6 +335,7 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
         const quality = Array.isArray(payload.qualities) ? payload.qualities[subsetIndex] : null;
         return {
           event_id: `${eventMeta.completed_at || new Date().toISOString()}#${eventMeta.request_id || 0}-${subsetIndex + 1}`,
+          algorithm: payload.algorithm || predicateMode,
           source: eventMeta.source || "brush",
           requested_at: eventMeta.requested_at || null,
           completed_at: eventMeta.completed_at || new Date().toISOString(),
@@ -708,9 +758,166 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
               value={predicateMode}
             >
               <option value="data-extent">Data Extent</option>
-              <option value="regression">Predicate Regression</option>
+              <option value="regression">Predicate Regression (Legacy)</option>
+              <option value="paper-regression">Predicate Regression (Paper)</option>
+              <option value="rpi">RPI (Paper, Multiple Solutions)</option>
             </select>
           </label>
+
+          {predicateMode === "paper-regression" ? (
+            <>
+              <label>
+                <span>PR Iterations</span>
+                <input
+                  min="1"
+                  max="20000"
+                  onChange={function (event) {
+                    setPaperIterations(Math.max(1, Number(event.target.value) || 1));
+                    onResult(null);
+                  }}
+                  step="100"
+                  type="number"
+                  value={paperIterations}
+                />
+              </label>
+              <label>
+                <span>PR Exponent (b)</span>
+                <input
+                  min="2"
+                  max="16"
+                  onChange={function (event) {
+                    setPaperExponent(Math.max(2, Number(event.target.value) || 2));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={paperExponent}
+                />
+              </label>
+              <label>
+                <span>Sparsity (gamma 1)</span>
+                <input
+                  min="0"
+                  onChange={function (event) {
+                    setPaperGammaL1(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  step="0.001"
+                  type="number"
+                  value={paperGammaL1}
+                />
+              </label>
+              <label>
+                <span>Smooth a (gamma a)</span>
+                <input
+                  min="0"
+                  onChange={function (event) {
+                    setPaperGammaA(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  step="0.01"
+                  type="number"
+                  value={paperGammaA}
+                />
+              </label>
+              <label>
+                <span>Smooth mu (gamma mu)</span>
+                <input
+                  min="0"
+                  onChange={function (event) {
+                    setPaperGammaMu(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  step="0.01"
+                  type="number"
+                  value={paperGammaMu}
+                />
+              </label>
+              <div className="projection-config-item">
+                <span>Class-balanced BCE</span>
+                <button
+                  aria-pressed={paperClassBalance}
+                  className={paperClassBalance ? "toggle-button checked" : "toggle-button"}
+                  onClick={function () {
+                    setPaperClassBalance(function (previous) {
+                      return !previous;
+                    });
+                    onResult(null);
+                  }}
+                  type="button"
+                >
+                  {paperClassBalance ? "On" : "Off"}
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {predicateMode === "rpi" ? (
+            <>
+              <label>
+                <span>Bins per Factor</span>
+                <input
+                  min="2"
+                  max="64"
+                  onChange={function (event) {
+                    setRpiBins(Math.max(2, Number(event.target.value) || 2));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={rpiBins}
+                />
+              </label>
+              <label>
+                <span>Max Depth (0 = all)</span>
+                <input
+                  min="0"
+                  onChange={function (event) {
+                    setRpiMaxDepth(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={rpiMaxDepth}
+                />
+              </label>
+              <label>
+                <span>Solutions (0 = all)</span>
+                <input
+                  min="0"
+                  max="1000"
+                  onChange={function (event) {
+                    setRpiMaxSolutions(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={rpiMaxSolutions}
+                />
+              </label>
+              <label>
+                <span>Search States (0 = unlimited)</span>
+                <input
+                  min="0"
+                  onChange={function (event) {
+                    setRpiMaxStates(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  step="1000"
+                  type="number"
+                  value={rpiMaxStates}
+                />
+              </label>
+              <label>
+                <span>Minimum Support</span>
+                <input
+                  min="1"
+                  onChange={function (event) {
+                    setRpiMinSupport(Math.max(1, Number(event.target.value) || 1));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={rpiMinSupport}
+                />
+              </label>
+            </>
+          ) : null}
 
           <label>
             <span>Predicate View Factors</span>
@@ -938,8 +1145,8 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
       <div className="legacy-widget-panel">
         {isLoading ? (
           <div className="info-banner">
-            Quick extent preview is shown immediately. Predicate regression is still running on
-            the backend.
+            Quick extent preview is shown immediately. The selected predicate algorithm is still
+            running on the backend.
           </div>
         ) : null}
         <LegacyDimbridgeWidget
@@ -956,6 +1163,7 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
           onMetaChange={setWidgetMeta}
           onPredicates={handlePredicateResult}
           predicateFactorLimit={predicateFactorLimit}
+          predicateOptions={predicateOptions}
           onSelectionChange={setCurrentSelectionMask}
           predicateMode={predicateMode}
           resetToken={resetToken}

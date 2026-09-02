@@ -174,7 +174,7 @@ function render({model, el}) {
         });
     }
 
-    let predicate_mode = model.get("predicate_mode"); // 'data extent' or 'predicate regression'
+    let predicate_mode = model.get("predicate_mode");
     let brush_mode = model.get("brush_mode"); // 'single', 'contrastive' or 'curve'
 
     // predicate

@@ -8,6 +8,28 @@ function formatPercent(value) {
 
 const MAX_VISIBLE_FACTORS = 20;
 
+function formatAlgorithm(algorithm) {
+  const labels = {
+    "data-extent": "Data Extent",
+    "legacy-predicate-regression": "Predicate Regression (Legacy)",
+    "paper-predicate-regression": "Predicate Regression (Paper)",
+    "recursive-predicate-induction": "Recursive Predicate Induction",
+  };
+  return labels[algorithm] || algorithm || "Predicate Result";
+}
+
+function formatQuality(quality) {
+  if (!quality) {
+    return "No quality score";
+  }
+  if (Number.isFinite(Number(quality.predicate_f1))) {
+    return `Proxy F1 ${formatNumber(Number(quality.f1))} | Rule F1 ${formatNumber(
+      Number(quality.predicate_f1),
+    )}`;
+  }
+  return `F1 ${formatNumber(Number(quality.f1))}`;
+}
+
 function normalizeInterval(interval, extent) {
   if (!interval || !extent) {
     return {start: 0, width: 100};
@@ -36,6 +58,24 @@ export default function PredicateResultView({analysis, result}) {
 
   const factorColumns = analysis ? analysis.factor_columns || [] : [];
   const records = analysis ? analysis.records || [] : [];
+  const candidateSolutions = Array.isArray(result.candidate_solutions)
+    ? result.candidate_solutions
+    : [];
+  const searchWasTruncated = Boolean(
+    result.diagnostics?.brushes?.some(function (brush) {
+      return brush.truncated;
+    }),
+  );
+  const solutionsWereLimited = Boolean(
+    result.diagnostics?.brushes?.some(function (brush) {
+      return brush.solutions_limited;
+    }),
+  );
+  const depthWasLimited = Boolean(
+    result.diagnostics?.brushes?.some(function (brush) {
+      return brush.depth_limited;
+    }),
+  );
   const extents = Object.fromEntries(
     factorColumns.map(function (column) {
       const values = records
@@ -58,7 +98,18 @@ export default function PredicateResultView({analysis, result}) {
 
   return (
     <div className="predicate-result">
-      {result.predicates.map(function (predicate, predicateIndex) {
+      <div className="predicate-result-meta">
+        <strong>{formatAlgorithm(result.algorithm)}</strong>
+        {searchWasTruncated ? (
+          <span className="warning-text">Search budget reached; candidates are incomplete.</span>
+        ) : depthWasLimited ? (
+          <span className="warning-text">Search stopped at the configured maximum depth.</span>
+        ) : solutionsWereLimited ? (
+          <span className="muted">Additional candidates were omitted by the solution limit.</span>
+        ) : null}
+      </div>
+
+      {(result.predicates || []).map(function (predicate, predicateIndex) {
         const rankedClauses = predicate
           .slice()
           .sort(function (first, second) {
@@ -78,9 +129,7 @@ export default function PredicateResultView({analysis, result}) {
                 {predicate.length > MAX_VISIBLE_FACTORS
                   ? `Top ${MAX_VISIBLE_FACTORS} of ${predicate.length} factors | `
                   : `${predicate.length} factors | `}
-                {result.qualities && result.qualities[predicateIndex]
-                  ? `F1 ${formatNumber(result.qualities[predicateIndex].f1)}`
-                  : "No quality score"}
+                {formatQuality(result.qualities?.[predicateIndex])}
               </span>
             </div>
 
@@ -122,6 +171,66 @@ export default function PredicateResultView({analysis, result}) {
           </section>
         );
       })}
+
+      {candidateSolutions.length ? (
+        <section className="predicate-alternatives">
+          <div className="predicate-group-header">
+            <strong>RPI Candidate Solutions</strong>
+            <span className="predicate-quality">
+              The first candidate drives the coordinated DimBridge views.
+            </span>
+          </div>
+          {candidateSolutions.map(function (brushCandidates, brushIndex) {
+            return (
+              <details className="candidate-brush" key={"candidate-brush-" + brushIndex} open>
+                <summary>
+                  Brush {brushIndex + 1}: {brushCandidates.length} candidate
+                  {brushCandidates.length === 1 ? "" : "s"}
+                </summary>
+                <div className="candidate-grid">
+                  {brushCandidates.map(function (candidate) {
+                    const quality = candidate.quality || {};
+                    return (
+                      <article
+                        className={candidate.rank === 1 ? "candidate-card primary" : "candidate-card"}
+                        key={candidate.signature || candidate.rank}
+                      >
+                        <div className="candidate-card-header">
+                          <strong>#{candidate.rank}</strong>
+                          <span>F1 {formatNumber(quality.f1)}</span>
+                        </div>
+                        <div className="candidate-metrics">
+                          <span>Precision {formatNumber(quality.precision)}</span>
+                          <span>Recall {formatNumber(quality.recall)}</span>
+                          <span>
+                            TP {candidate.true_positive_count} / Predicted {candidate.predicted_count}
+                          </span>
+                        </div>
+                        <div className="candidate-clauses">
+                          {(candidate.predicate || []).map(function (clause) {
+                            return (
+                              <span
+                                className="candidate-clause"
+                                key={`${clause.dim}:${clause.bin}:${clause.attribute}`}
+                              >
+                                {clause.attribute}: {formatNumber(clause.interval?.[0])} to{" "}
+                                {formatNumber(clause.interval?.[1])}
+                              </span>
+                            );
+                          })}
+                          {!candidate.predicate?.length ? (
+                            <span className="muted">TRUE (no discriminating clause)</span>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </details>
+            );
+          })}
+        </section>
+      ) : null}
     </div>
   );
 }

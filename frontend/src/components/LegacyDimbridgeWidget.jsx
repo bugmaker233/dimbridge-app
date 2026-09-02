@@ -3,9 +3,16 @@ import {useEffect, useMemo, useRef} from "react";
 import legacyWidget from "../legacy/widget";
 import {createLegacyWidgetModel} from "../legacy/model-adapter";
 
+const MODEL_PREDICATE_MODES = {
+  regression: "predicate regression",
+  "paper-regression": "paper predicate regression",
+  rpi: "recursive predicate induction",
+};
+
 export default function LegacyDimbridgeWidget({
   analysis,
   predicateMode,
+  predicateOptions,
   brushMode,
   focusedSplomAttributes,
   objectiveSelectionMask,
@@ -153,8 +160,8 @@ export default function LegacyDimbridgeWidget({
         s: 4,
         splom_s: 2,
         cmap: "viridis",
-        predicate_mode:
-          predicateMode === "regression" ? "predicate regression" : "data extent",
+        predicate_mode: MODEL_PREDICATE_MODES[predicateMode] || "data extent",
+        predicate_options: predicateOptions || {},
         brush_mode: brushMode,
         xticks: 5,
         yticks: 5,
@@ -167,7 +174,7 @@ export default function LegacyDimbridgeWidget({
         predicates: {},
       };
     },
-    [brushMode, predicateMode, preparedAnalysis],
+    [brushMode, predicateMode, predicateOptions, preparedAnalysis],
   );
 
   useEffect(

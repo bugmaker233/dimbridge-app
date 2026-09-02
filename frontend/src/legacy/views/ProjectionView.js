@@ -87,7 +87,7 @@ export default class ProjectionView {
         this.preview_predicate_engine = preview_predicate_engine;
         this.set_predicate_callback();
 
-        this.predicate_mode = this.predicate_engine.mode; // TODO"predicate regression"
+        this.predicate_mode = this.predicate_engine.mode;
         this.brush_mode = brush_mode;
 
         return this;
@@ -398,7 +398,7 @@ export default class ProjectionView {
             );
         }
 
-        if (this.predicate_mode === "predicate regression") {
+        if (this.predicate_mode !== "data extent") {
             this.model.set(
                 "selection_context",
                 {source, requested_at: new Date().toISOString()},

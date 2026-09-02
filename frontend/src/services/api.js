@@ -49,3 +49,21 @@ export async function runRegression(body) {
   });
   return parseResponse(response);
 }
+
+export async function runPaperRegression(body) {
+  const response = await fetch("/api/predicate/paper-regression", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  return parseResponse(response);
+}
+
+export async function runRPI(body) {
+  const response = await fetch("/api/predicate/rpi", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  return parseResponse(response);
+}

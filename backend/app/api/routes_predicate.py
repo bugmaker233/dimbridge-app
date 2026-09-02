@@ -6,8 +6,15 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
+from app.core.paper_predicate_engine import compute_paper_predicate_sequence
 from app.core.predicate_engine import compute_predicate_sequence
-from app.schemas import PredicateRequest, PredicateResponse
+from app.core.rpi_engine import compute_recursive_predicates
+from app.schemas import (
+    PaperRegressionRequest,
+    PredicateRequest,
+    PredicateResponse,
+    RPIRequest,
+)
 from app.services.dataset_service import (
     dataframe_from_records,
     dataset_store,
@@ -87,7 +94,12 @@ def predicate_data_extent(payload: PredicateRequest) -> PredicateResponse:
         ]
         predicates.append(predicate)
 
-    return PredicateResponse(columns=columns, predicates=predicates, qualities=None)
+    return PredicateResponse(
+        columns=columns,
+        predicates=predicates,
+        qualities=None,
+        algorithm="data-extent",
+    )
 
 
 @router.post("/regression", response_model=PredicateResponse)
@@ -118,4 +130,64 @@ def predicate_regression(payload: PredicateRequest) -> PredicateResponse:
         columns=columns,
         predicates=predicates,
         qualities=normalized_qualities,
+        algorithm="legacy-predicate-regression",
+    )
+
+
+@router.post("/paper-regression", response_model=PredicateResponse)
+def paper_predicate_regression(payload: PaperRegressionRequest) -> PredicateResponse:
+    dataframe = _resolve_dataframe(payload)
+    columns = _resolve_columns(dataframe, payload.attribute_names)
+    numeric_frame = _prepare_numeric_frame(dataframe, columns)
+    masks = _validate_masks(payload.selected_masks, len(numeric_frame))
+
+    predicates, qualities, diagnostics = compute_paper_predicate_sequence(
+        numeric_frame.to_numpy(dtype=float),
+        masks,
+        attribute_names=columns,
+        n_iter=payload.n_iter,
+        learning_rate=payload.learning_rate,
+        exponent=payload.exponent,
+        gamma_l1=payload.gamma_l1,
+        gamma_a=payload.gamma_a,
+        gamma_mu=payload.gamma_mu,
+        class_balance=payload.class_balance,
+        random_seed=payload.random_seed,
+    )
+
+    return PredicateResponse(
+        columns=columns,
+        predicates=predicates,
+        qualities=qualities,
+        algorithm="paper-predicate-regression",
+        diagnostics=diagnostics,
+    )
+
+
+@router.post("/rpi", response_model=PredicateResponse)
+def recursive_predicate_induction(payload: RPIRequest) -> PredicateResponse:
+    dataframe = _resolve_dataframe(payload)
+    columns = _resolve_columns(dataframe, payload.attribute_names)
+    numeric_frame = _prepare_numeric_frame(dataframe, columns)
+    masks = _validate_masks(payload.selected_masks, len(numeric_frame))
+
+    predicates, qualities, candidate_solutions, diagnostics = compute_recursive_predicates(
+        numeric_frame.to_numpy(dtype=float),
+        masks,
+        attribute_names=columns,
+        n_bins=payload.n_bins,
+        max_depth=payload.max_depth,
+        max_solutions=payload.max_solutions,
+        max_states=payload.max_states,
+        min_support=payload.min_support,
+        min_f1_improvement=payload.min_f1_improvement,
+    )
+
+    return PredicateResponse(
+        columns=columns,
+        predicates=predicates,
+        qualities=qualities,
+        algorithm="recursive-predicate-induction",
+        candidate_solutions=candidate_solutions,
+        diagnostics=diagnostics,
     )
