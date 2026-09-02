@@ -1,0 +1,118 @@
+import * as d3 from "d3";
+import {subsample} from "./views/view-utils.js";
+import {update_point_style_gl} from "./views/view-utils.js";
+
+function same_key(a, b) {
+    return same_set(new Set(Object.keys(a)), new Set(Object.keys(b)));
+}
+
+function same_set(xs, ys) {
+    return xs.size === ys.size && [...xs].every((x) => ys.has(x));
+}
+
+export class InteractionController {
+    //fields
+    projection_view;
+    predicate_view;
+    splom_view;
+    predicates_prev;
+
+    constructor(data, image_urls, predicate_mode) {
+        this.data = data;
+        this.image_urls = image_urls;
+        this.predicates_prev = undefined;
+        this.predicate_mode = predicate_mode;
+        return this;
+    }
+
+    add_views(projection_view, predicate_view, splom_view, image_view) {
+        this.projection_view = projection_view;
+        this.predicate_view = predicate_view;
+        this.splom_view = splom_view;
+        this.image_view = image_view;
+    }
+
+    on_predicate_view_brushed(predicates, data_size = 1000) {
+        let splom_attributes = Object.keys(predicates[0]);
+    }
+
+    on_projection_view_brush_start() {
+        this.splom_view.hide_arrows();
+    }
+
+    on_projection_view_change(predicates, data_size = 1000) {
+        //get projection view brush-selected data
+        //start predicate computation
+        //update predicate view
+        this.predicate_view.draw(predicates);
+
+        if (this.image_view !== undefined) {
+            // let brushed_data = this.projection_view.brush_cf.allFiltered();
+            let images = [];
+            let n_brushes = predicates.length;
+            let sample_brushes = subsample(d3.range(n_brushes), 6);
+            for (let brush_index of sample_brushes) {
+                let brushed_data = this.data.filter(
+                    (d) => d.brushed[brush_index],
+                );
+                images.push(brushed_data.map((d) => this.image_urls[d.index]));
+            }
+            this.image_view.draw(images);
+        }
+
+        //update splom view
+        if (data_size < 20000) {
+            let splom_attributes;
+            let splom_attribute_limit = this.splom_view.max_attributes ?? 6;
+            if (Array.isArray(this.splom_view.focused_attributes)) {
+                splom_attributes = this.splom_view.focused_attributes.slice(
+                    0,
+                    splom_attribute_limit,
+                );
+            } else if (this.predicate_mode === "predicate regression") {
+                splom_attributes = Object.keys(predicates[0]).slice(
+                    0,
+                    splom_attribute_limit,
+                );
+            } else if (this.predicate_mode === "data extent") {
+                splom_attributes = this.splom_view.splom_attributes;
+            }
+
+            if (
+                this.predicates_prev !== undefined &&
+                !same_set(
+                    new Set(this.predicates_prev),
+                    new Set(splom_attributes),
+                )
+            ) {
+                // force redraw SPLOM if predicates are different
+                // this will remove and redraw SPLOM
+                this.splom_view.splom_obj = undefined;
+                this.splom_view.draw(splom_attributes, predicates);
+            } else {
+                // this will only recolor the current SPLOM
+                this.splom_view.draw(splom_attributes, predicates);
+            }
+            this.predicates_prev = splom_attributes;
+        }
+    }
+
+    on_predicate_view_change(data, selection_mask = undefined) {
+        if (this.projection_view?.sca) {
+            update_point_style_gl(this.projection_view.sca, "selection");
+        }
+        if (this.splom_view?.splom_obj) {
+            this.splom_view.recolor("selection");
+            this.splom_view.redraw_kde("selection");
+        }
+        if (this.projection_view?.notify_selection_change) {
+            let next_mask = selection_mask;
+            if (selection_mask === undefined) {
+                next_mask = data.map((datum) => Boolean(datum.selected));
+            }
+            this.projection_view.notify_selection_change(next_mask);
+        }
+    }
+
+    on_splom_view_change() {}
+}

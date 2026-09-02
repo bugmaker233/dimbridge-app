@@ -1,0 +1,285 @@
+// third party
+import * as d3 from "d3";
+import numeric from "numeric";
+
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+// custom
+import {DataExtentPredicate} from "./predicate_engine/DataExtentPredicate.js";
+import {PredicateRegression} from "./predicate_engine/PredicateRegression.js";
+
+import ProjectionView from "./views/ProjectionView.js";
+import PredicateView from "./views/PredicateView.js";
+import SplomView from "./views/SplomView.js";
+import ImageView from "./views/ImageView.js";
+
+import {InteractionController} from "./controller.js";
+
+import * as lib from "./lib.js";
+import {
+    C,
+    reshape,
+    create_svg,
+    linspace,
+    zip,
+    flexbox,
+    numpy2array,
+    pandas2array,
+    hex2rgb,
+    normalize,
+} from "./lib.js";
+import "./widget.css";
+
+let config;
+
+// widget
+function initialize({model}) {
+    console.log("DimBridge initialize()");
+    console.log("model", model);
+
+    //set the dimbridge width to be Jupyter notebook cell width
+    // let cell = d3.select(".jp-OutputArea-output");
+
+    // // automatic UI width
+    // let cell = null;
+    // let cell_width = -1;
+
+    ////jupyterlab 3.0.0
+    ////tested on jupyterlab 4.4.5
+    //cell = d3.selectAll(".jp-Cell-outputWrapper");
+    //cell_width = cell.node().getBoundingClientRect().width;
+    //console.log("cell_width =", cell_width);
+
+    //if (isNaN(cell_width)) {
+    //    //jupyterlab 4.*
+    //    cell = d3.select(".jp-WindowedPanel-viewport");
+    //    if (cell._groups[0] !== null) {
+    //        cell_width = cell.node().getBoundingClientRect().width;
+    //    }
+    //}
+    //console.log("cell_width 2", cell_width);
+    //if (cell_width == 0) {
+    //    // jupyterlab 4.4.5
+    //    cell = d3.selectAll("jp-OutputArea-output");
+    //    cell_width = cell.node().getBoundingClientRect().width;
+    //}
+    //console.log("cell_width 3", cell_width);
+
+    // //// default to 1000 if auto width does not work
+    // cell_width = cell_width || 1000;
+    // console.log("final cell_width", cell_width);
+    // let ui_width = cell_width - 120; //leave some space for shadow
+
+    // layout config
+    config = {
+        //between-view configs
+        margin_outer: 10,
+        margin_inner: 4,
+        font_size: 14,
+        gap: 8,
+
+        //projection view
+        scatter_padding: 10,
+        scatter_width: 0.33,
+        scatter_height: 0.31,
+
+        //predicate view
+        predicate_view_subplot_height: 34,
+        predicate_view_fontsize: 11,
+
+        splom_spacing: 4,
+        splom_font_size: 10,
+        xticks: model.get("xticks"),
+        yticks: model.get("yticks"),
+        splom_mark_size: model.get("splom_s"),
+
+        // image view
+        n_cols: 12,
+        n_rows: 2,
+        border_width: 4,
+        padding: 4,
+    };
+    console.log("Widget Config:", config);
+    // return () => {
+    //     // Optional: Called when the widget is destroyed.
+    // };
+}
+
+function cleanup() {
+    // Optional. Cleanup callback.
+    // Executed any time the view is removed from the DOM
+}
+
+//WIP
+function generatePDF(element, {width = 400, height = 400} = {}) {
+    html2canvas(element).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("l", "px", [width, height]);
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save("download.pdf");
+    });
+}
+
+function render({model, el}) {
+    console.log("DimBridge render", model, el);
+    console.log("model", model);
+    console.log("el", el);
+    config.cell_width = el.getBoundingClientRect().width;
+    config.width = Math.max(config.cell_width - 24, 320);
+    config.image_view_width = config.width;
+
+    let width = config.width;
+    console.log("UI width", width);
+
+    //get data from python
+    let data = model.get("data");
+    data = Array.isArray(data) ? data : pandas2array(data);
+    let attributes = model.get("attribute_names");
+    attributes = Array.isArray(attributes) && attributes.length > 0
+        ? attributes
+        : Object.keys(data[0]);
+    let x = model.get("x");
+    x = Array.isArray(x) ? x : numpy2array(x);
+    let y = model.get("y");
+    y = Array.isArray(y) ? y : numpy2array(y);
+    let c = model.get("c");
+    c = Array.isArray(c) ? c : numpy2array(c); //mark color, array of 3-tuples [r,g,b], or array of numbers
+    let s = model.get("s"); //mark size, array of numbers
+    let image_urls = model.get("image_urls");
+
+    let splom_attributes = model.get("splom_attributes");
+
+    //augment data object
+    data.forEach((d, i) => {
+        d.x = x[i];
+        d.y = y[i];
+        d.index = i;
+    });
+
+    if (typeof c[0] === "number") {
+        //if c is 1-d array, convert scalar values in c to 3-tuple rgb
+        let cmap = model.get("cmap");
+        let [vmin, vmax] = d3.extent(c);
+        if (cmap === "viridis") {
+            cmap = (x) => d3.interpolateViridis(normalize(x, vmin, vmax));
+        } else if (cmap === "set10") {
+            cmap = (i) => d3.schemeCategory10[i];
+        }
+        c = c.map((d) => {
+            return hex2rgb(cmap(d));
+        });
+    }
+
+    let predicate_mode = model.get("predicate_mode"); // 'data extent' or 'predicate regression'
+    let brush_mode = model.get("brush_mode"); // 'single', 'contrastive' or 'curve'
+
+    // predicate
+    let predicate_engine =
+        predicate_mode === "data extent"
+            ? new DataExtentPredicate(data, attributes)
+            : new PredicateRegression(data, attributes, model);
+    let preview_predicate_engine = new DataExtentPredicate(data, attributes);
+
+    //init controller
+    let controller = new InteractionController(
+        data,
+        image_urls.length > 0 ? image_urls : undefined,
+        predicate_mode,
+    );
+
+    //init views
+    console.log(data, x, y, s, c, model, controller, config);
+    let projection_view = new ProjectionView(
+        data,
+        {
+            x,
+            y,
+            s,
+            c,
+            attributes,
+            brush_mode,
+            predicate_engine,
+            preview_predicate_engine,
+        },
+        model,
+        controller,
+        config,
+    );
+    let predicate_view = new PredicateView(data, model, controller, config);
+    // let splom_view = {node: create_svg().node(), draw: () => {}}; //dummy view
+    let splom_view = new SplomView(
+        data,
+        splom_attributes,
+        model,
+        controller,
+        config,
+    );
+    let image_view = image_urls.length > 0 ? new ImageView(config) : undefined;
+
+    // tell controller to manage between-view interactions
+    controller.add_views(
+        projection_view,
+        predicate_view,
+        splom_view,
+        image_view,
+    );
+
+    // add margins between view components
+    d3.select(projection_view.node).style("margin-right", `${config.gap}px`);
+    d3.select(predicate_view.node).style("margin-right", `${config.gap}px`);
+
+    // return main view
+    let views;
+    if (image_view !== undefined) {
+        d3.select(image_view.node).style("margin-top", `${config.gap}px`);
+        views = [
+            projection_view.node,
+            predicate_view.node,
+            splom_view.node,
+            image_view.node,
+        ];
+    } else {
+        views = [projection_view.node, predicate_view.node, splom_view.node];
+    }
+    let return_node = flexbox(views, width);
+    return_node.classList.add("dimbridge-layout");
+    d3.select(return_node).style("padding", "8px"); // give some space for shadow effects
+    el.appendChild(return_node);
+
+    // let export_button = d3.create("button").text("export");
+    // export_button.on("click", () => {
+    //     generatePDF(el);
+    // });
+    // el.appendChild(export_button.node());
+
+    //model.on("change:x", function () {
+    //    console.log(arguments);
+    //    // callback of x value change
+    //    let new_x = model.get("x");
+    //    data.forEach((d, i) => (d[0] = new_x[i]));
+    //    sca.update_position(data);
+    //});
+    // model.on("msg:custom", (msg) => {
+    //     // custom message handling from python's
+    //     // widget.send({ "type": "my-event", "foo": "bar" })
+    //     console.log("custom msg", msg);
+    // });
+    return {
+        controller,
+        projection_view,
+        predicate_view,
+        splom_view,
+        image_view,
+    };
+}
+
+export default {
+    initialize,
+    config,
+    cleanup,
+    render,
+}; // end of export defalt

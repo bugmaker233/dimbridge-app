@@ -1,0 +1,26 @@
+{
+  "name": "dimbridge-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "crossfilter2": "^1.5.4",
+    "d3": "^7.9.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
+    "numeric": "^1.2.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "regl": "^2.1.1",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}

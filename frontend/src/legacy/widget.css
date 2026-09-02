@@ -1,0 +1,25 @@
+.dimbridge-standalone-host {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.dimbridge-layout {
+    align-items: flex-start;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px;
+    min-width: max-content;
+    width: 100% !important;
+}
+
+.dimbridge-layout > * {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 1200px) {
+    .dimbridge-layout {
+        flex-wrap: wrap !important;
+        min-width: 0;
+    }
+}
