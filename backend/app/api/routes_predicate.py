@@ -175,10 +175,11 @@ def recursive_predicate_induction(payload: RPIRequest) -> PredicateResponse:
         numeric_frame.to_numpy(dtype=float),
         masks,
         attribute_names=columns,
-        n_bins=payload.n_bins,
         max_depth=payload.max_depth,
         max_solutions=payload.max_solutions,
         max_states=payload.max_states,
+        max_intervals_per_factor=payload.max_intervals_per_factor,
+        beam_width=payload.beam_width,
         min_support=payload.min_support,
         min_f1_improvement=payload.min_f1_improvement,
     )

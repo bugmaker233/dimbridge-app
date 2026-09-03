@@ -54,10 +54,11 @@ class PaperRegressionRequest(PredicateRequest):
 
 
 class RPIRequest(PredicateRequest):
-    n_bins: int = Field(default=8, ge=2, le=64)
     max_depth: int | None = Field(default=None, ge=1)
     max_solutions: int | None = Field(default=20, ge=1, le=1000)
     max_states: int | None = Field(default=20_000, ge=1)
+    max_intervals_per_factor: int | None = Field(default=5, ge=1, le=1000)
+    beam_width: int | None = Field(default=100, ge=1, le=10_000)
     min_support: int = Field(default=1, ge=1)
     min_f1_improvement: float = Field(default=1e-9, ge=0.0, le=1.0)
 

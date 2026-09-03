@@ -18,11 +18,14 @@ This backend exposes the standalone DimBridge APIs used by the React frontend.
 
 - Both regression engines use PyTorch. The paper endpoint adds the explicit L1 feature-selection
   term and both squared-L2 sequence smoothness terms described in the paper.
-- RPI uses quantile bins for numeric base predicates and F1 for recursive refinement. The PIXAL
-  and DimBridge papers do not publish an official RPI implementation or prescribe a numeric
-  binning method, so this module is a documented reconstruction rather than a line-for-line port.
+- RPI evaluates every contiguous interval induced by adjacent observed-value midpoints rather
+  than quantile bins. Interval generation follows the public `notebooks/interval-tree.ipynb`;
+  multi-branch recursion uses DimBridge's F1 adaptation and remains a documented reconstruction
+  because the public notebook only contains a greedy single-best-interval prototype.
 - RPI returns its best candidate in `predicates` for compatibility and all retained alternatives
-  in `candidate_solutions`. Search limits and truncation status are returned in `diagnostics`.
+  in `candidate_solutions`. Per-factor continuation, beam, state, depth, and output limits can be
+  disabled independently; their status, exact interval counts, and a per-brush `search_complete`
+  flag are returned in `diagnostics`.
 - Projection uses scikit-learn for PCA/t-SNE and umap-learn for UMAP.
 - CSV, XLSX, and XLS uploads are supported. XLSX uses `openpyxl`; XLS uses `xlrd`.
 - Dataset uploads are stored in memory for the current backend process.

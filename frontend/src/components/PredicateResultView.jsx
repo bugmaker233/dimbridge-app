@@ -13,7 +13,7 @@ function formatAlgorithm(algorithm) {
     "data-extent": "Data Extent",
     "legacy-predicate-regression": "Predicate Regression (Legacy)",
     "paper-predicate-regression": "Predicate Regression (Paper)",
-    "recursive-predicate-induction": "Recursive Predicate Induction",
+    "recursive-predicate-induction": "RPI (Exact Observed Intervals)",
   };
   return labels[algorithm] || algorithm || "Predicate Result";
 }
@@ -76,6 +76,16 @@ export default function PredicateResultView({analysis, result}) {
       return brush.depth_limited;
     }),
   );
+  const beamWasLimited = Boolean(
+    result.diagnostics?.brushes?.some(function (brush) {
+      return brush.beam_limited;
+    }),
+  );
+  const intervalBranchesWereLimited = Boolean(
+    result.diagnostics?.brushes?.some(function (brush) {
+      return brush.interval_branch_limited;
+    }),
+  );
   const extents = Object.fromEntries(
     factorColumns.map(function (column) {
       const values = records
@@ -104,6 +114,10 @@ export default function PredicateResultView({analysis, result}) {
           <span className="warning-text">Search budget reached; candidates are incomplete.</span>
         ) : depthWasLimited ? (
           <span className="warning-text">Search stopped at the configured maximum depth.</span>
+        ) : intervalBranchesWereLimited ? (
+          <span className="muted">Per-factor interval limits pruned recursive branches.</span>
+        ) : beamWasLimited ? (
+          <span className="muted">Beam width limited recursive branches.</span>
         ) : solutionsWereLimited ? (
           <span className="muted">Additional candidates were omitted by the solution limit.</span>
         ) : null}
@@ -211,7 +225,7 @@ export default function PredicateResultView({analysis, result}) {
                             return (
                               <span
                                 className="candidate-clause"
-                                key={`${clause.dim}:${clause.bin}:${clause.attribute}`}
+                                key={`${clause.interval_id || clause.dim}:${clause.attribute}`}
                               >
                                 {clause.attribute}: {formatNumber(clause.interval?.[0])} to{" "}
                                 {formatNumber(clause.interval?.[1])}

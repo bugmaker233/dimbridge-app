@@ -133,10 +133,11 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
   const [paperGammaA, setPaperGammaA] = useState(0.05);
   const [paperGammaMu, setPaperGammaMu] = useState(0.01);
   const [paperClassBalance, setPaperClassBalance] = useState(true);
-  const [rpiBins, setRpiBins] = useState(8);
   const [rpiMaxDepth, setRpiMaxDepth] = useState(0);
   const [rpiMaxSolutions, setRpiMaxSolutions] = useState(20);
   const [rpiMaxStates, setRpiMaxStates] = useState(20000);
+  const [rpiIntervalsPerFactor, setRpiIntervalsPerFactor] = useState(5);
+  const [rpiBeamWidth, setRpiBeamWidth] = useState(100);
   const [rpiMinSupport, setRpiMinSupport] = useState(1);
   const [selectionHistory, setSelectionHistory] = useState([]);
   const [sessionStartedAt, setSessionStartedAt] = useState(() => new Date().toISOString());
@@ -258,10 +259,12 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
       }
       if (predicateMode === "rpi") {
         return {
-          n_bins: rpiBins,
           max_depth: rpiMaxDepth > 0 ? rpiMaxDepth : null,
           max_solutions: rpiMaxSolutions > 0 ? rpiMaxSolutions : null,
           max_states: rpiMaxStates > 0 ? rpiMaxStates : null,
+          max_intervals_per_factor:
+            rpiIntervalsPerFactor > 0 ? rpiIntervalsPerFactor : null,
+          beam_width: rpiBeamWidth > 0 ? rpiBeamWidth : null,
           min_support: rpiMinSupport,
         };
       }
@@ -275,7 +278,8 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
       paperGammaMu,
       paperIterations,
       predicateMode,
-      rpiBins,
+      rpiBeamWidth,
+      rpiIntervalsPerFactor,
       rpiMaxDepth,
       rpiMaxSolutions,
       rpiMaxStates,
@@ -760,7 +764,7 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
               <option value="data-extent">Data Extent</option>
               <option value="regression">Predicate Regression (Legacy)</option>
               <option value="paper-regression">Predicate Regression (Paper)</option>
-              <option value="rpi">RPI (Paper, Multiple Solutions)</option>
+              <option value="rpi">RPI (Exact Intervals, Multiple Solutions)</option>
             </select>
           </label>
 
@@ -854,16 +858,29 @@ export default function AnalysisWorkspace({analysis, dataset, onProjectionChange
           {predicateMode === "rpi" ? (
             <>
               <label>
-                <span>Bins per Factor</span>
+                <span>Interval Branches per Factor (0 = all)</span>
                 <input
-                  min="2"
-                  max="64"
+                  min="0"
+                  max="1000"
                   onChange={function (event) {
-                    setRpiBins(Math.max(2, Number(event.target.value) || 2));
+                    setRpiIntervalsPerFactor(Math.max(0, Number(event.target.value) || 0));
                     onResult(null);
                   }}
                   type="number"
-                  value={rpiBins}
+                  value={rpiIntervalsPerFactor}
+                />
+              </label>
+              <label>
+                <span>Beam Width (0 = all)</span>
+                <input
+                  min="0"
+                  max="10000"
+                  onChange={function (event) {
+                    setRpiBeamWidth(Math.max(0, Number(event.target.value) || 0));
+                    onResult(null);
+                  }}
+                  type="number"
+                  value={rpiBeamWidth}
                 />
               </label>
               <label>

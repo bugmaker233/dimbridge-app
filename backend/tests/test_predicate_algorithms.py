@@ -5,7 +5,11 @@ import unittest
 import numpy as np
 
 from app.core.paper_predicate_engine import compute_paper_predicate_sequence
-from app.core.rpi_engine import _build_base_clauses, compute_recursive_predicates
+from app.core.rpi_engine import (
+    _build_interval_axes,
+    _interval_mask,
+    compute_recursive_predicates,
+)
 
 
 class RecursivePredicateInductionTests(unittest.TestCase):
@@ -20,10 +24,11 @@ class RecursivePredicateInductionTests(unittest.TestCase):
             self.x,
             self.selected,
             ["signal_a", "signal_b", "noise"],
-            n_bins=4,
             max_depth=3,
             max_solutions=20,
             max_states=10_000,
+            max_intervals_per_factor=5,
+            beam_width=100,
         )
 
         perfect_candidates = [candidate for candidate in candidates[0] if candidate["quality"]["f1"] == 1.0]
@@ -38,20 +43,41 @@ class RecursivePredicateInductionTests(unittest.TestCase):
         self.assertTrue({"signal_a", "signal_b"}.issubset(perfect_attributes))
         self.assertFalse(diagnostics["brushes"][0]["truncated"])
 
-    def test_closed_numeric_bins_partition_repeated_values(self) -> None:
+    def test_observed_intervals_use_midpoints_and_preserve_repeated_values(self) -> None:
         values = np.array([0, 0, 0, 1, 1, 2, 2, 2, 3, 3], dtype=float)[:, None]
-        clauses, _ = _build_base_clauses(values, ["value"], n_bins=4)
-        membership_count = np.stack([clause.mask for clause in clauses]).sum(axis=0)
+        axes, unique_values, interval_counts = _build_interval_axes(values, ["value"])
+        interval_mask = _interval_mask(axes[0], 1, 2)
 
-        np.testing.assert_array_equal(membership_count, np.ones(values.shape[0], dtype=int))
+        np.testing.assert_array_equal(interval_mask, np.isin(values[:, 0], [1, 2]))
+        self.assertEqual(unique_values["value"], 4)
+        self.assertEqual(interval_counts["value"], 9)
+        self.assertEqual(axes[0].boundaries[1], 0.5)
+        self.assertEqual(axes[0].boundaries[3], 2.5)
+
+    def test_exact_interval_recovers_selection_spanning_multiple_old_bins(self) -> None:
+        predicates, qualities, _, diagnostics = compute_recursive_predicates(
+            self.x[:, [0, 2]],
+            self.selected,
+            ["signal", "noise"],
+            max_depth=2,
+            max_states=1_000,
+            max_intervals_per_factor=5,
+            beam_width=20,
+        )
+
+        self.assertEqual(qualities[0]["f1"], 1.0)
+        self.assertEqual(qualities[0]["recall"], 1.0)
+        self.assertEqual(predicates[0][0]["attribute"], "signal")
+        self.assertEqual(diagnostics["interval_generation"], "all contiguous observed-value intervals")
 
     def test_reports_when_search_budget_truncates_the_tree(self) -> None:
         _, _, _, diagnostics = compute_recursive_predicates(
             self.x,
             self.selected,
             ["signal_a", "signal_b", "noise"],
-            n_bins=4,
             max_states=3,
+            max_intervals_per_factor=5,
+            beam_width=100,
         )
 
         self.assertTrue(diagnostics["brushes"][0]["truncated"])
@@ -62,13 +88,53 @@ class RecursivePredicateInductionTests(unittest.TestCase):
             self.x,
             self.selected,
             ["signal_a", "signal_b", "noise"],
-            n_bins=4,
             max_solutions=1,
             max_states=10_000,
+            max_intervals_per_factor=5,
+            beam_width=100,
         )
 
         self.assertEqual(len(candidates[0]), 1)
         self.assertTrue(diagnostics["brushes"][0]["solutions_limited"])
+
+    def test_reports_exactly_when_recursive_interval_branches_are_limited(self) -> None:
+        _, _, _, limited_diagnostics = compute_recursive_predicates(
+            self.x,
+            self.selected,
+            ["signal_a", "signal_b", "noise"],
+            max_states=None,
+            max_intervals_per_factor=1,
+            beam_width=None,
+        )
+        _, _, _, complete_diagnostics = compute_recursive_predicates(
+            self.x[:8, :2],
+            np.array([[False, False, True, True, True, False, False, False]]),
+            ["signal_a", "signal_b"],
+            max_states=None,
+            max_intervals_per_factor=None,
+            beam_width=None,
+        )
+
+        self.assertTrue(limited_diagnostics["brushes"][0]["interval_branch_limited"])
+        self.assertFalse(limited_diagnostics["brushes"][0]["search_complete"])
+        self.assertFalse(complete_diagnostics["brushes"][0]["interval_branch_limited"])
+        self.assertTrue(complete_diagnostics["brushes"][0]["search_complete"])
+
+    def test_returned_multifactor_rules_have_no_f1_redundant_clause(self) -> None:
+        _, _, candidates, _ = compute_recursive_predicates(
+            self.x,
+            self.selected,
+            ["signal_a", "signal_b", "noise"],
+            max_depth=3,
+            max_solutions=50,
+            max_states=10_000,
+            max_intervals_per_factor=5,
+            beam_width=100,
+        )
+
+        for candidate in candidates[0]:
+            if len(candidate["predicate"]) > 1:
+                self.assertTrue(all(clause["importance"] > 0 for clause in candidate["predicate"]))
 
 
 class PaperPredicateRegressionTests(unittest.TestCase):

@@ -243,9 +243,9 @@ POST /api/predicate/rpi
 
 - `/regression` 保留迁移前的实现，确保旧流程与结果兼容。
 - `/paper-regression` 实现 DimBridge 论文公式 5-10，包括 BCE、`L1` 稀疏项以及连续框选时对 `a` 和 `mu` 的平方 `L2` 平滑项。
-- `/rpi` 按 PIXAL 论文描述构造数值分箱基础谓词，以 DimBridge 指定的 F1 替换原始 Bayes factor，并返回多个可重叠候选解。
+- `/rpi` 枚举相邻观测值中点构成的所有连续数值区间，以 DimBridge 指定的 F1 替换 PIXAL 的原始 Bayes factor，并递归返回多组替代因子集。
 
-RPI 的公开论文没有给出官方源码和数值分箱策略，因此本项目使用分位数分箱，并在响应的 `diagnostics` 中返回搜索深度、状态数和是否截断。将 `max_states`、`max_solutions` 设为 `null` 可取消相应工程上限，但大数据上可能非常慢。
+RPI 的精确区间生成参考作者仓库的 [`notebooks/interval-tree.ipynb`](https://github.com/tiga1231/dim-bridge/blob/main/notebooks/interval-tree.ipynb)；该 notebook 只包含单最优区间的贪心原型，多解 RPI 搜索仍是按 PIXAL/DimBridge 论文重建。响应的 `diagnostics` 会返回已评估区间数、搜索深度、状态数以及状态、beam、深度或返回数限制是否生效。将 `max_intervals_per_factor`、`beam_width`、`max_states`、`max_solutions` 设为 `null` 可分别取消对应限制；前端中输入 `0` 等价于 `null`。
 
 公式、实现细节与复现边界见 [PAPER_REPRODUCTION.md](PAPER_REPRODUCTION.md)。
 
