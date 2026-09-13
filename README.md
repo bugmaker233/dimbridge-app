@@ -267,25 +267,3 @@ t-SNE 小样本或单特征数据
 
 当前版本将上传数据保存在内存中，并在浏览器端渲染 legacy 交互视图。大数据集建议先抽样或减少 factor columns。
 
-## 迁移检查清单
-
-迁移到新环境时建议依次检查：
-
-1. 安装 Python 3.10+ 和 Node.js 18+。
-2. 安装后端依赖：`python -m pip install -r backend/requirements.txt`。
-3. 安装前端依赖：`cd frontend && npm install`。
-4. 启动后端并打开 `/api/health`。
-5. 启动前端并上传一个 CSV 或 XLSX 测试文件。
-6. 依次测试 PCA、t-SNE、UMAP、Supervised UMAP。
-7. 框选投影视图，确认 Predicate View 和 SPLOM View 联动更新。
-8. 生产部署时配置 `/api` 反向代理或 CORS。
-
-## 软著整理建议
-
-用于软件著作权材料整理时，可将以下内容作为项目说明基础：
-
-- 软件名称：DimBridge 可交互降维分析与谓词解释系统。
-- 软件架构：React 前端 + FastAPI 后端。
-- 核心功能：数据上传、降维投影、交互刷选、谓词解释、SPLOM 联动分析。
-- 主要算法：PCA、t-SNE、UMAP、Supervised UMAP、Predicate Regression。
-- 主要源码目录：`backend/app`、`frontend/src/components`、`frontend/src/legacy`。
