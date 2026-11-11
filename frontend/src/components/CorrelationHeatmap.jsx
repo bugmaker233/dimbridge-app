@@ -1,7 +1,7 @@
 import {lazy, Suspense, useEffect, useMemo, useRef, useState} from "react";
 
 import CorrelationNetwork from "./CorrelationNetwork";
-import {buildCorrelationGraph, sameCorrelationPair} from "./correlationGraph";
+import {buildCorrelationGraph, formatRelationValue, sameCorrelationPair} from "./correlationGraph";
 
 const CorrelationSphere = lazy(function () {
   return import("./CorrelationSphere");
@@ -115,6 +115,7 @@ function normalizedMutualInformation(first, second) {
   }
 
   const count = first.length;
+  // Rank-bin resolution follows sample size, bounded to 2-10 bins.
   const binCount = Math.min(10, Math.max(2, Math.floor(Math.sqrt(count / 2))));
   const firstBins = rankBins(first, binCount);
   const secondBins = rankBins(second, binCount);
@@ -159,6 +160,7 @@ function normalizedMutualInformation(first, second) {
     }
   }
 
+  // Normalize by the geometric mean of marginal entropies; the result has no sign.
   const denominator = Math.sqrt(firstEntropy * secondEntropy);
   if (denominator === 0) {
     return null;
@@ -213,11 +215,10 @@ function cellColors(value, method) {
   };
 }
 
-function formatCorrelation(value) {
-  if (!Number.isFinite(value)) {
-    return "-";
-  }
-  return value.toFixed(2);
+function cloneNetworkGroups(groups) {
+  return groups.map(function (group) {
+    return {...group, members: group.members.slice()};
+  });
 }
 
 export default function CorrelationHeatmap({
@@ -388,11 +389,7 @@ export default function CorrelationHeatmap({
       members: orderedMembers,
     };
     setNetworkGroupHistory(function (previous) {
-      return previous.concat([
-        networkGroups.map(function (item) {
-          return {...item, members: item.members.slice()};
-        }),
-      ]);
+      return previous.concat([cloneNetworkGroups(networkGroups)]);
     });
     setNetworkGroups(networkGroups.concat(group));
     return group.id;
@@ -433,11 +430,7 @@ export default function CorrelationHeatmap({
     const existingGroup = sourceGroup || targetGroup;
     if (existingGroup) {
       setNetworkGroupHistory(function (previous) {
-        return previous.concat([
-          networkGroups.map(function (item) {
-            return {...item, members: item.members.slice()};
-          }),
-        ]);
+        return previous.concat([cloneNetworkGroups(networkGroups)]);
       });
       setNetworkGroups(
         networkGroups.map(function (group) {
@@ -465,11 +458,7 @@ export default function CorrelationHeatmap({
       return;
     }
     const previousGroups = networkGroupHistory[networkGroupHistory.length - 1];
-    setNetworkGroups(
-      previousGroups.map(function (group) {
-        return {...group, members: group.members.slice()};
-      }),
-    );
+    setNetworkGroups(cloneNetworkGroups(previousGroups));
     setNetworkGroupHistory(networkGroupHistory.slice(0, -1));
   };
 
@@ -676,7 +665,7 @@ export default function CorrelationHeatmap({
                         return (
                           <td key={column}>
                             <button
-                              aria-label={`${column} and ${rowColumn}: ${formatCorrelation(result.value)}`}
+                              aria-label={`${column} and ${rowColumn}: ${formatRelationValue(result.value)}`}
                               aria-pressed={isActive}
                               className={isActive ? "correlation-cell active" : "correlation-cell"}
                               disabled={isDiagonal || !Number.isFinite(result.value)}
@@ -684,10 +673,10 @@ export default function CorrelationHeatmap({
                                 toggleSelectedPair(pair);
                               }}
                               style={colors}
-                              title={`${methodLabel}: ${formatCorrelation(result.value)} (n=${result.count})`}
+                              title={`${methodLabel}: ${formatRelationValue(result.value)} (n=${result.count})`}
                               type="button"
                             >
-                              {formatCorrelation(result.value)}
+                              {formatRelationValue(result.value)}
                             </button>
                           </td>
                         );

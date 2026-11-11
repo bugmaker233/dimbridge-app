@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 
-import {correlationEdgeColor, sameCorrelationPair} from "./correlationGraph";
+import {correlationEdgeColor, formatRelationValue, sameCorrelationPair} from "./correlationGraph";
 
 const SPHERE_RADIUS = 2.35;
 const NODE_COLORS = {
@@ -10,10 +10,6 @@ const NODE_COLORS = {
   objective: "#4b9873",
   group: "#7a6a9f",
 };
-
-function formatValue(value) {
-  return Number.isFinite(value) ? value.toFixed(2) : "-";
-}
 
 function fibonacciPosition(index, count) {
   if (count <= 1) {
@@ -320,7 +316,7 @@ export default function CorrelationSphere({
               })
             : previous.concat(node.id);
         });
-      } else if (node.kind === "group") {
+      } else {
         setSelectedVariableIds([]);
         setSelectedGroupId(function (previous) {
           return previous === node.id ? null : node.id;
@@ -716,7 +712,7 @@ export default function CorrelationSphere({
               <>
                 <strong>{detailTarget.data.pair.join(" x ")}</strong>
                 <span>
-                  Correlation {formatValue(detailTarget.data.value)} | n={detailTarget.data.count}
+                  Correlation {formatRelationValue(detailTarget.data.value)} | n={detailTarget.data.count}
                 </span>
               </>
             )}

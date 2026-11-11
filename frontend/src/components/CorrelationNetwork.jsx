@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
-import {correlationEdgeColor, sameCorrelationPair} from "./correlationGraph";
+import {correlationEdgeColor, formatRelationValue, sameCorrelationPair} from "./correlationGraph";
 
 const VIEW_WIDTH = 920;
 const VIEW_HEIGHT = 560;
@@ -11,10 +11,6 @@ const CENTER_Y = VIEW_HEIGHT / 2;
 const INNER_RADIUS = 76;
 const OUTER_RADIUS = 228;
 const RING_STRENGTHS = [0.8, 0.6, 0.4, 0.2, 0];
-
-function formatValue(value) {
-  return Number.isFinite(value) ? value.toFixed(2) : "-";
-}
 
 function shortLabel(label, limit = 16) {
   if (label.length <= limit) {
@@ -565,7 +561,7 @@ export default function CorrelationNetwork({
             const isActive = selectedPairs.some(function (pair) {
               return sameCorrelationPair(pair, edge.pair);
             });
-            const title = `${edge.pair[0]} x ${edge.pair[1]}: ${formatValue(edge.value)} (n=${edge.count})`;
+            const title = `${edge.pair[0]} x ${edge.pair[1]}: ${formatRelationValue(edge.value)} (n=${edge.count})`;
             const selectPair = () => {
               onPairSelect?.(edge.pair);
             };
