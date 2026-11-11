@@ -1275,6 +1275,14 @@ input[type="number"] {
   margin-bottom: 0.75rem;
 }
 
+.predicate-result-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: space-between;
+}
+
 .predicate-group {
   border: 1px solid #d8e4eb;
   border-radius: 16px;
@@ -1329,6 +1337,70 @@ input[type="number"] {
   bottom: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #0f4c81, #116466);
+}
+
+.predicate-alternatives {
+  border: 1px solid #cbdce5;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(237, 246, 248, 0.98), rgba(248, 251, 249, 0.98));
+  padding: 0.8rem;
+}
+
+.candidate-brush + .candidate-brush {
+  margin-top: 0.65rem;
+}
+
+.candidate-brush summary {
+  color: #193f56;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.35rem 0;
+}
+
+.candidate-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin-top: 0.45rem;
+}
+
+.candidate-card {
+  border: 1px solid #d7e3e8;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0.65rem;
+}
+
+.candidate-card.primary {
+  border-color: #4f8586;
+  box-shadow: inset 3px 0 0 #116466;
+}
+
+.candidate-card-header,
+.candidate-metrics,
+.candidate-clauses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+}
+
+.candidate-card-header {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.candidate-metrics {
+  color: #5a6c78;
+  font-size: 0.75rem;
+  margin: 0.4rem 0;
+}
+
+.candidate-clause {
+  border-radius: 999px;
+  background: #e6f0f1;
+  color: #244d56;
+  font-size: 0.76rem;
+  padding: 0.28rem 0.48rem;
 }
 
 .factor-stats-panel {

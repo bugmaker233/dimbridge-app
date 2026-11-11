@@ -10,11 +10,22 @@ This backend exposes the standalone DimBridge APIs used by the React frontend.
 - `POST /api/projection/run`: compute PCA, t-SNE, UMAP, or supervised UMAP projection
 - `POST /api/projection/umap`: compatibility endpoint for UMAP projection
 - `POST /api/predicate/data-extent`: compute interval extents from selection masks
-- `POST /api/predicate/regression`: compute regression predicates from selection masks
+- `POST /api/predicate/regression`: preserve the legacy regression implementation
+- `POST /api/predicate/paper-regression`: optimize DimBridge equations 5-10
+- `POST /api/predicate/rpi`: run multi-solution recursive predicate induction
 
 ## Runtime Notes
 
-- The regression engine uses PyTorch.
+- Both regression engines use PyTorch. The paper endpoint adds the explicit L1 feature-selection
+  term and both squared-L2 sequence smoothness terms described in the paper.
+- RPI evaluates every contiguous interval induced by adjacent observed-value midpoints rather
+  than quantile bins. Interval generation follows the public `notebooks/interval-tree.ipynb`;
+  multi-branch recursion uses DimBridge's F1 adaptation and remains a documented reconstruction
+  because the public notebook only contains a greedy single-best-interval prototype.
+- RPI returns its best candidate in `predicates` for compatibility and all retained alternatives
+  in `candidate_solutions`. Per-factor continuation, beam, state, depth, and output limits can be
+  disabled independently; their status, exact interval counts, and a per-brush `search_complete`
+  flag are returned in `diagnostics`.
 - Projection uses scikit-learn for PCA/t-SNE and umap-learn for UMAP.
 - CSV, XLSX, and XLS uploads are supported. XLSX uses `openpyxl`; XLS uses `xlrd`.
 - Dataset uploads are stored in memory for the current backend process.

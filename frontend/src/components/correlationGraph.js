@@ -66,6 +66,7 @@ export function buildCorrelationGraph({
           if (!Number.isFinite(result?.value)) {
             return;
           }
+          // A grouped edge represents its strongest member pair, retaining sign and sample count.
           if (
             representative === null ||
             Math.abs(result.value) > Math.abs(representative.value)
@@ -114,4 +115,8 @@ export function correlationEdgeColor(edge, method) {
     return "#2b8a72";
   }
   return edge.value < 0 ? "#b84f4a" : "#2c77a5";
+}
+
+export function formatRelationValue(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : "-";
 }

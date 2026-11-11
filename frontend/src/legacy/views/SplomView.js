@@ -194,7 +194,7 @@ export default class SplomView {
             if (this.predicate_mode === "data extent") {
                 // color_mode = "selection";
                 color_mode = "confusion";
-            } else if (this.predicate_mode === "predicate regression") {
+            } else if (this.predicate_mode !== "data extent") {
                 color_mode = "confusion";
             }
         } else if (n_boxes == 2) {

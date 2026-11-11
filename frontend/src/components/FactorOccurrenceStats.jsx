@@ -83,7 +83,7 @@ export default function FactorOccurrenceStats({history, onExport, onReset}) {
         </div>
       ) : (
         <p className="muted factor-stats-empty">
-          Select a sample subset and wait for predicate regression to populate statistics.
+          Select a sample subset and wait for a predicate algorithm to populate statistics.
         </p>
       )}
     </section>

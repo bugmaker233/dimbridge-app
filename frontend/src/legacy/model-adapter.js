@@ -1,4 +1,10 @@
-import {runRegression} from "../services/api";
+import {runPaperRegression, runRegression, runRPI} from "../services/api";
+
+const PREDICATE_RUNNERS = {
+  "predicate regression": runRegression,
+  "paper predicate regression": runPaperRegression,
+  "recursive predicate induction": runRPI,
+};
 
 function buildChangeEvent(name, model) {
   return {
@@ -55,7 +61,8 @@ export class LegacyWidgetModel {
     }
 
     const predicateMode = this.get("predicate_mode");
-    if (predicateMode !== "predicate regression") {
+    const runPredicate = PREDICATE_RUNNERS[predicateMode];
+    if (typeof runPredicate !== "function") {
       return;
     }
 
@@ -83,7 +90,9 @@ export class LegacyWidgetModel {
       const records = this.get("records");
       const datasetId = this.get("dataset_id");
       const hasDatasetId = typeof datasetId === "string" && datasetId.length > 0;
-      const response = await runRegression({
+      const predicateOptions = this.get("predicate_options") || {};
+      const response = await runPredicate({
+        ...predicateOptions,
         dataset_id: hasDatasetId ? datasetId : null,
         records: hasDatasetId ? null : Array.isArray(records) ? records : null,
         attribute_names: this.get("attribute_names"),
@@ -95,8 +104,12 @@ export class LegacyWidgetModel {
       }
 
       const payload = {
+        columns: response.columns ?? [],
         predicates: response.predicates,
         qualities: response.qualities ?? [],
+        algorithm: response.algorithm ?? predicateMode,
+        candidate_solutions: response.candidate_solutions ?? null,
+        diagnostics: response.diagnostics ?? null,
         event_meta: {...requestMeta, completed_at: new Date().toISOString()},
       };
 
